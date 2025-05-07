@@ -1,7 +1,7 @@
 # Elevatify - Project Collaboration Platform
 
 <div align="center">
-  <img src="front/src/assets/elevatify-logo.svg" alt="Elevatify Logo" width="120" />
+  <img src="front/src/assets/logo.svg" alt="Elevatify Logo" width="120" />
 </div>
 
 ## Overview
