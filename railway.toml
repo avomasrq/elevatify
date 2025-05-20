@@ -6,7 +6,7 @@ dockerfilePath = "back/Dockerfile"
 startCommand = "cd back && npx prisma migrate deploy && npm start"
 healthcheckPath = "/health"
 healthcheckTimeout = 100
-restartPolicyType = "on-failure"
+restartPolicy = "on-failure"
 restartPolicyMaxRetries = 10
 
 [deploy.env]
