@@ -1,208 +1,171 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useUser } from "@clerk/clerk-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useUser } from "@clerk/clerk-react";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "@/components/ui/use-toast";
+import { Logo } from "@/components/Logo";
 
 export default function Onboarding() {
-  const { user } = useUser();
   const navigate = useNavigate();
-  const { toast } = useToast();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
+  const { user } = useUser();
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
-    displayName: user?.fullName || "",
+    fullName: user?.displayName || "",
     specialization: "",
     region: "",
     bio: "",
-    githubUsername: "",
-    linkedinUrl: "",
   });
 
-  const regions = [
-    { value: "us", label: "United States" },
-    { value: "eu", label: "Europe" },
-    { value: "asia", label: "Asia" },
-    { value: "kz", label: "Kazakhstan" },
-    { value: "ru", label: "Russia" },
-    { value: "by", label: "Belarus" },
-    { value: "uz", label: "Uzbekistan" },
-    { value: "kg", label: "Kyrgyzstan" },
-    { value: "tj", label: "Tajikistan" },
-    { value: "am", label: "Armenia" },
-    { value: "az", label: "Azerbaijan" },
-    { value: "md", label: "Moldova" },
-    { value: "tm", label: "Turkmenistan" },
-    { value: "other", label: "Other" }
-  ];
-
-  const specializations = [
-    { value: "frontend", label: "Frontend Development" },
-    { value: "backend", label: "Backend Development" },
-    { value: "fullstack", label: "Full Stack Development" },
-    { value: "mobile", label: "Mobile Development" },
-    { value: "devops", label: "DevOps" },
-    { value: "ui_ux", label: "UI/UX Design" },
-    { value: "data", label: "Data Science" },
-    { value: "ai_ml", label: "AI/Machine Learning" },
-    { value: "security", label: "Security" },
-    { value: "qa", label: "Quality Assurance" }
-  ];
+  useEffect(() => {
+    if (!user) {
+      navigate("/sign-in");
+    }
+  }, [user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
-
-    setIsSubmitting(true);
+    setIsLoading(true);
 
     try {
-      // Save to localStorage
-      localStorage.setItem(`userSettings_${user.id}`, JSON.stringify({
-        ...formData,
-        emailNotifications: true,
-        projectUpdates: true,
-      }));
+      // Get existing users or initialize empty array
+      const storedUsers = JSON.parse(localStorage.getItem('users') || '[]');
+      
+      // Create or update user profile
+      const userProfile = {
+        id: user?.id,
+        email: user?.email,
+        fullName: formData.fullName,
+        specialization: formData.specialization,
+        region: formData.region,
+        bio: formData.bio,
+        skills: [],
+        projects: [],
+        createdAt: new Date().toISOString(),
+      };
 
-      // Here you would typically save to your backend as well
-      // await api.saveUserProfile(formData);
+      // Update or add user profile
+      const existingUserIndex = storedUsers.findIndex((u: any) => u.id === user?.id);
+      if (existingUserIndex >= 0) {
+        storedUsers[existingUserIndex] = {
+          ...storedUsers[existingUserIndex],
+          ...userProfile,
+        };
+      } else {
+        storedUsers.push(userProfile);
+      }
+
+      // Save updated users array
+      localStorage.setItem('users', JSON.stringify(storedUsers));
 
       toast({
-        title: "Profile Complete!",
-        description: "Your profile has been set up successfully.",
+        title: "Profile Created",
+        description: "Your profile has been set up successfully!",
       });
 
-      // Redirect to home page
       navigate("/home");
     } catch (error) {
+      console.error("Error saving profile:", error);
       toast({
         title: "Error",
-        description: "Failed to save your profile. Please try again.",
+        description: "Could not save your profile. Please try again.",
         variant: "destructive",
       });
     } finally {
-      setIsSubmitting(false);
+      setIsLoading(false);
     }
   };
 
-  if (!user) {
-    navigate("/sign-in");
-    return null;
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-white to-elevatify-50 flex flex-col justify-center items-center px-4 py-12">
-      <div className="w-10 h-10 rounded-full bg-elevatify-600 flex items-center justify-center mb-8">
-        <span className="text-white font-bold text-lg">E</span>
-      </div>
-
-      <div className="w-full max-w-2xl bg-white p-8 rounded-xl shadow-lg">
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">Complete Your Profile</h1>
-          <p className="text-gray-600 mt-2">
-            Let's set up your profile to help you get started with Elevatify
+    <div className="min-h-screen bg-gradient-to-br from-white to-purple-50 flex flex-col items-center justify-center p-4">
+      <div className="w-full max-w-md space-y-8">
+        <div className="flex flex-col items-center">
+          <Logo className="w-12 h-12" />
+          <h2 className="mt-6 text-3xl font-bold text-gray-900">Complete Your Profile</h2>
+          <p className="mt-2 text-sm text-gray-600">
+            Let's get to know you better
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="mt-8 space-y-6">
           <div className="space-y-4">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="displayName">Display Name</Label>
-                <Input
-                  id="displayName"
-                  value={formData.displayName}
-                  onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
-                  placeholder="Your name"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="specialization">Specialization</Label>
-                <Select
-                  value={formData.specialization}
-                  onValueChange={(value) => setFormData({ ...formData, specialization: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select your specialization" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {specializations.map((spec) => (
-                      <SelectItem key={spec.value} value={spec.value}>
-                        {spec.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div>
+              <Label htmlFor="fullName">Full Name</Label>
+              <Input
+                id="fullName"
+                value={formData.fullName}
+                onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                placeholder="Enter your full name"
+                required
+                className="mt-1"
+              />
             </div>
 
-            <div className="space-y-2">
+            <div>
+              <Label htmlFor="specialization">Specialization</Label>
+              <Select
+                value={formData.specialization}
+                onValueChange={(value) => setFormData({ ...formData, specialization: value })}
+                required
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select your specialization" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="frontend">Frontend Development</SelectItem>
+                  <SelectItem value="backend">Backend Development</SelectItem>
+                  <SelectItem value="fullstack">Full Stack Development</SelectItem>
+                  <SelectItem value="mobile">Mobile Development</SelectItem>
+                  <SelectItem value="devops">DevOps</SelectItem>
+                  <SelectItem value="design">UI/UX Design</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
               <Label htmlFor="region">Region</Label>
               <Select
                 value={formData.region}
                 onValueChange={(value) => setFormData({ ...formData, region: value })}
+                required
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select your region" />
                 </SelectTrigger>
                 <SelectContent>
-                  {regions.map((region) => (
-                    <SelectItem key={region.value} value={region.value}>
-                      {region.label}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="northAmerica">North America</SelectItem>
+                  <SelectItem value="southAmerica">South America</SelectItem>
+                  <SelectItem value="europe">Europe</SelectItem>
+                  <SelectItem value="asia">Asia</SelectItem>
+                  <SelectItem value="africa">Africa</SelectItem>
+                  <SelectItem value="oceania">Oceania</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            <div className="space-y-2">
+            <div>
               <Label htmlFor="bio">Bio</Label>
               <Input
                 id="bio"
                 value={formData.bio}
                 onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
                 placeholder="Tell us about yourself"
+                className="mt-1"
               />
             </div>
-
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="githubUsername">GitHub Username</Label>
-                <Input
-                  id="githubUsername"
-                  value={formData.githubUsername}
-                  onChange={(e) => setFormData({ ...formData, githubUsername: e.target.value })}
-                  placeholder="Your GitHub username"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="linkedinUrl">LinkedIn Profile</Label>
-                <Input
-                  id="linkedinUrl"
-                  value={formData.linkedinUrl}
-                  onChange={(e) => setFormData({ ...formData, linkedinUrl: e.target.value })}
-                  placeholder="Your LinkedIn profile URL"
-                />
-              </div>
-            </div>
           </div>
 
-          <div className="pt-6">
-            <Button
-              type="submit"
-              className="w-full bg-elevatify-600 hover:bg-elevatify-700"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? "Setting up your profile..." : "Complete Setup"}
-            </Button>
-          </div>
+          <Button
+            type="submit"
+            className="w-full bg-purple-600 hover:bg-purple-700"
+            disabled={isLoading}
+          >
+            {isLoading ? "Saving..." : "Complete Profile"}
+          </Button>
         </form>
       </div>
     </div>
   );
-} 
+}

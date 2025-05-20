@@ -1,231 +1,133 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Sidebar } from "@/components/Sidebar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useUser, useClerk } from "@clerk/clerk-react";
-import { Loader2, Camera, LogOut } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { Camera, MapPin, Github, Linkedin, Code, Briefcase, Mail, Plus } from "lucide-react";
+import { useAuth } from "@/lib/auth.tsx";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import { useNavigate } from "react-router-dom";
 
 export default function Profile() {
-  const { user, isLoaded } = useUser();
-  const { signOut } = useClerk();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [isUpdating, setIsUpdating] = useState(false);
+  const { user, updateUser } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
-    bio: ""
-  });
-  const [error, setError] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [newSkill, setNewSkill] = useState("");
 
-  useEffect(() => {
-    if (user) {
-      setFormData({
-        firstName: user.firstName || "",
-        lastName: user.lastName || "",
-        bio: (user.unsafeMetadata?.bio as string) || ""
-      });
-    }
-  }, [user]);
-
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
+  if (!user) {
+    navigate("/sign-in");
+    return null;
+  }
 
   const handleImageClick = () => {
     fileInputRef.current?.click();
   };
 
-  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !user) return;
+    if (!file) return;
 
-    try {
-      setIsUpdating(true);
-      await user.setProfileImage({ file });
-      
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      updateUser({
+        imageUrl: reader.result as string
+      });
       toast({
         title: "Success",
         description: "Profile picture updated successfully",
       });
-    } catch (error) {
-      console.error("Error updating profile picture:", error);
-      toast({
-        title: "Error",
-        description: "Failed to update profile picture. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsUpdating(false);
-    }
+    };
+    reader.readAsDataURL(file);
   };
 
-  const handleProfileUpdate = async (data: {
-    username?: string;
-    firstName?: string;
-    lastName?: string;
-    bio?: string;
-    specialization?: string;
-    region?: string;
-    githubUsername?: string;
-    linkedinProfile?: string;
-  }) => {
+  const handleSave = async () => {
     try {
-      if (!user) return;
-
-      // Update name if it changed
-      if ((data.firstName && data.firstName !== user.firstName) || 
-          (data.lastName && data.lastName !== user.lastName)) {
-        await user.update({
-          firstName: data.firstName,
-          lastName: data.lastName
-        });
-      }
-
-      // Update username separately if it changed
-      if (data.username && data.username !== user.username) {
-        await user.update({
-          username: data.username
-        });
-      }
-
-      // Update metadata for bio and other fields
-      if (data.bio || data.specialization || data.region || data.githubUsername || data.linkedinProfile) {
-        await user.update({
-          unsafeMetadata: {
-            ...user.unsafeMetadata,
-            bio: data.bio,
-            specialization: data.specialization,
-            region: data.region,
-            githubUsername: data.githubUsername,
-            linkedinProfile: data.linkedinProfile
-          }
-        });
-      }
-
+      await updateUser(user);
+      setIsEditing(false);
       toast({
         title: "Success",
         description: "Profile updated successfully",
       });
-      return true;
     } catch (error) {
-      console.error('Profile update error:', error);
       toast({
         title: "Error",
-        description: "Failed to update profile. Please try again.",
+        description: "Failed to update profile",
         variant: "destructive",
       });
-      return false;
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsUpdating(true);
-    setError(null);
-
-    try {
-      const success = await handleProfileUpdate({
-        username: formData.firstName,
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        bio: formData.bio,
-        specialization: "",
-        region: "",
-        githubUsername: "",
-        linkedinProfile: ""
-      });
-
-      if (success) {
-        setError(null);
+  const handleAddSkill = async () => {
+    if (newSkill.trim() && !user.skills.includes(newSkill.trim())) {
+      try {
+        await updateUser({
+          skills: [...user.skills, newSkill.trim()]
+        });
+        setNewSkill("");
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to add skill",
+          variant: "destructive",
+        });
       }
-    } catch (error) {
-      console.error('Submit error:', error);
-      setError("Failed to update profile. Please try again.");
-    } finally {
-      setIsUpdating(false);
     }
   };
 
-  const handleLogout = async () => {
+  const handleRemoveSkill = async (skillToRemove: string) => {
     try {
-      await signOut();
-      navigate("/");
+      await updateUser({
+        skills: user.skills.filter(skill => skill !== skillToRemove)
+      });
     } catch (error) {
-      console.error("Error signing out:", error);
       toast({
         title: "Error",
-        description: "Failed to sign out. Please try again.",
+        description: "Failed to remove skill",
         variant: "destructive",
       });
     }
   };
-
-  if (!isLoaded) {
-    return (
-      <div className="flex h-screen bg-gray-100">
-        <Sidebar />
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <Navbar />
-          <div className="flex items-center justify-center h-full">
-            <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const hasChanges = 
-    formData.firstName !== user?.firstName ||
-    formData.lastName !== user?.lastName ||
-    formData.bio !== (user?.unsafeMetadata?.bio as string || "");
 
   return (
     <div className="flex h-screen bg-gray-100">
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Navbar />
-        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100">
-          <div className="container mx-auto px-6 py-8">
-            <h1 className="text-3xl font-semibold text-gray-800 mb-8">Profile Settings</h1>
-
-            <div className="bg-white rounded-lg shadow-sm border border-gray-100">
-              <div className="p-6">
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  <div className="flex items-center space-x-4 mb-6">
+        <main className="flex-1 overflow-y-auto p-6">
+          <div className="max-w-6xl mx-auto">
+            <div className="flex flex-col lg:flex-row gap-6">
+              {/* Left Column - Profile Info */}
+              <div className="lg:w-1/3 space-y-6">
+                {/* Profile Card */}
+                <Card className="border-purple-200">
+                  <CardHeader className="text-center">
                     <div 
-                      className="relative h-20 w-20 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden cursor-pointer group"
+                      className="w-32 h-32 mx-auto mb-4 rounded-full overflow-hidden cursor-pointer relative group border-4 border-purple-200"
                       onClick={handleImageClick}
                     >
-                      {user?.imageUrl ? (
-                        <>
-                          <img
-                            src={user.imageUrl}
-                            alt={user.firstName || "Profile"}
-                            className="h-full w-full object-cover"
-                          />
-                          <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Camera className="h-6 w-6 text-white" />
-                          </div>
-                        </>
-                      ) : (
-                        <div className="flex flex-col items-center justify-center">
-                          <Camera className="h-6 w-6 text-gray-400" />
-                          <span className="text-xs text-gray-500 mt-1">Add Photo</span>
-                        </div>
-                      )}
+                      <img
+                        src={user.imageUrl}
+                        alt={user.displayName}
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Camera className="h-8 w-8 text-white" />
+                      </div>
                       <input
                         type="file"
                         ref={fileInputRef}
@@ -234,70 +136,286 @@ export default function Profile() {
                         onChange={handleImageChange}
                       />
                     </div>
-                    <div>
-                      <h2 className="text-xl font-semibold text-gray-800">
-                        {user?.firstName} {user?.lastName}
-                      </h2>
-                      <p className="text-gray-500">{user?.primaryEmailAddress?.emailAddress}</p>
-                      <p className="text-sm text-gray-400">ID: {user?.id}</p>
+                    <CardTitle className="text-2xl font-bold text-purple-800">{user.displayName}</CardTitle>
+                    <div className="flex items-center justify-center gap-2 text-sm text-gray-600 mt-2">
+                      <Code className="w-4 h-4 text-purple-600" />
+                      {user.specialization}
                     </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <Label htmlFor="firstName">First Name</Label>
-                      <Input
-                        id="firstName"
-                        name="firstName"
-                        value={formData.firstName}
-                        onChange={handleInputChange}
-                        placeholder="Enter your first name"
-                      />
+                    <div className="flex items-center justify-center gap-2 text-sm text-gray-600 mt-2">
+                      <MapPin className="w-4 h-4 text-purple-600" />
+                      {user.region}
                     </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="lastName">Last Name</Label>
-                      <Input
-                        id="lastName"
-                        name="lastName"
-                        value={formData.lastName}
-                        onChange={handleInputChange}
-                        placeholder="Enter your last name"
-                      />
+                    <div className="flex items-center justify-center gap-2 text-sm text-gray-600 mt-2">
+                      <Mail className="w-4 h-4 text-purple-600" />
+                      {user.email}
                     </div>
-                  </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-3 gap-4 py-4">
+                      <div className="text-center">
+                        <div className="text-2xl font-semibold text-purple-800">{user.projects}</div>
+                        <div className="text-xs text-gray-600">Projects</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-semibold text-purple-800">{user.collaborators}</div>
+                        <div className="text-xs text-gray-600">Collaborators</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-semibold text-purple-800">{user.rating}</div>
+                        <div className="text-xs text-gray-600">Rating</div>
+                      </div>
+                    </div>
+                    {user.githubUsername && (
+                      <Button
+                        variant="outline"
+                        className="w-full mb-2 border-purple-200 text-purple-700 hover:bg-purple-50"
+                        onClick={() => window.open(`https://github.com/${user.githubUsername}`, '_blank')}
+                      >
+                        <Github className="w-4 h-4 mr-2" />
+                        GitHub Profile
+                      </Button>
+                    )}
+                    {user.linkedinUrl && (
+                      <Button
+                        variant="outline"
+                        className="w-full border-purple-200 text-purple-700 hover:bg-purple-50"
+                        onClick={() => window.open(user.linkedinUrl, '_blank')}
+                      >
+                        <Linkedin className="w-4 h-4 mr-2" />
+                        LinkedIn Profile
+                      </Button>
+                    )}
+                  </CardContent>
+                </Card>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="bio">Bio</Label>
-                    <Textarea
-                      id="bio"
-                      name="bio"
-                      value={formData.bio}
-                      onChange={handleInputChange}
-                      placeholder="Tell us about yourself"
-                      className="min-h-[100px]"
-                    />
-                  </div>
+                {/* Skills Card */}
+                <Card className="border-purple-200">
+                  <CardHeader>
+                    <CardTitle className="text-lg text-purple-800">Skills</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-wrap gap-2">
+                      {user.skills.map((skill, index) => (
+                        <div
+                          key={index}
+                          className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-sm flex items-center"
+                        >
+                          {skill}
+                          {isEditing && (
+                            <button
+                              onClick={() => handleRemoveSkill(skill)}
+                              className="ml-2 text-purple-700 hover:text-purple-900"
+                            >
+                              ×
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      {isEditing && (
+                        <button
+                          onClick={() => document.getElementById('skillInput')?.focus()}
+                          className="bg-purple-50 text-purple-700 px-3 py-1 rounded-full text-sm flex items-center hover:bg-purple-100"
+                        >
+                          <Plus className="w-4 h-4 mr-1" />
+                          Add Skill
+                        </button>
+                      )}
+                    </div>
+                    {isEditing && (
+                      <div className="mt-4 flex gap-2">
+                        <Input
+                          id="skillInput"
+                          value={newSkill}
+                          onChange={(e) => setNewSkill(e.target.value)}
+                          placeholder="Add a skill"
+                          className="border-purple-200 focus:ring-purple-500"
+                          onKeyPress={(e) => e.key === 'Enter' && handleAddSkill()}
+                        />
+                        <Button 
+                          onClick={handleAddSkill}
+                          className="bg-purple-600 hover:bg-purple-700"
+                        >
+                          Add
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
 
-                  <div className="flex justify-between items-center pt-6 border-t">
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      onClick={handleLogout}
-                      className="flex items-center"
-                    >
-                      <LogOut className="w-4 h-4 mr-2" />
-                      Sign Out
-                    </Button>
-                    <Button
-                      type="submit"
-                      className="bg-elevatify-600 hover:bg-elevatify-700"
-                      disabled={isUpdating || !hasChanges}
-                    >
-                      {isUpdating ? "Saving..." : "Save Changes"}
-                    </Button>
-                  </div>
-                </form>
+              {/* Right Column - Tabs */}
+              <div className="lg:w-2/3">
+                <Card className="border-purple-200">
+                  <CardContent className="p-6">
+                    <Tabs defaultValue="about">
+                      <TabsList className="mb-4">
+                        <TabsTrigger value="about">About</TabsTrigger>
+                        <TabsTrigger value="projects">Projects</TabsTrigger>
+                        <TabsTrigger value="settings">Settings</TabsTrigger>
+                      </TabsList>
+
+                      <TabsContent value="about">
+                        {isEditing ? (
+                          <div className="space-y-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Display Name
+                              </label>
+                              <Input
+                                value={user.displayName}
+                                onChange={(e) => updateUser({ displayName: e.target.value })}
+                                className="border-purple-200 focus:ring-purple-500"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Email
+                              </label>
+                              <Input
+                                value={user.email}
+                                onChange={(e) => updateUser({ email: e.target.value })}
+                                type="email"
+                                className="border-purple-200 focus:ring-purple-500"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Bio
+                              </label>
+                              <Textarea
+                                value={user.bio}
+                                onChange={(e) => updateUser({ bio: e.target.value })}
+                                rows={4}
+                                className="border-purple-200 focus:ring-purple-500"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Specialization
+                              </label>
+                              <Input
+                                value={user.specialization}
+                                onChange={(e) => updateUser({ specialization: e.target.value })}
+                                className="border-purple-200 focus:ring-purple-500"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Region
+                              </label>
+                              <Input
+                                value={user.region}
+                                onChange={(e) => updateUser({ region: e.target.value })}
+                                className="border-purple-200 focus:ring-purple-500"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                GitHub Username
+                              </label>
+                              <Input
+                                value={user.githubUsername}
+                                onChange={(e) => updateUser({ githubUsername: e.target.value })}
+                                className="border-purple-200 focus:ring-purple-500"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                LinkedIn URL
+                              </label>
+                              <Input
+                                value={user.linkedinUrl}
+                                onChange={(e) => updateUser({ linkedinUrl: e.target.value })}
+                                className="border-purple-200 focus:ring-purple-500"
+                              />
+                            </div>
+                            <div className="flex justify-end gap-2">
+                              <Button 
+                                variant="outline" 
+                                onClick={() => setIsEditing(false)}
+                                className="border-purple-200 text-purple-700 hover:bg-purple-50"
+                              >
+                                Cancel
+                              </Button>
+                              <Button 
+                                onClick={handleSave} 
+                                className="bg-purple-600 hover:bg-purple-700"
+                              >
+                                Save Changes
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-4">
+                            <p className="text-gray-600">{user.bio}</p>
+                            <Button 
+                              onClick={() => setIsEditing(true)} 
+                              className="bg-purple-600 hover:bg-purple-700"
+                            >
+                              Edit Profile
+                            </Button>
+                          </div>
+                        )}
+                      </TabsContent>
+
+                      <TabsContent value="projects">
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <h3 className="text-lg font-semibold text-purple-800">Your Projects</h3>
+                            <Button 
+                              className="bg-purple-600 hover:bg-purple-700"
+                              onClick={() => navigate('/create-project')}
+                            >
+                              <Briefcase className="w-4 h-4 mr-2" />
+                              Create Project
+                            </Button>
+                          </div>
+                          <div className="grid gap-4">
+                            {user.projects === 0 ? (
+                              <div className="text-center py-8">
+                                <Briefcase className="w-12 h-12 text-purple-300 mx-auto mb-4" />
+                                <p className="text-gray-600 mb-4">No projects yet.</p>
+                                <Button 
+                                  variant="outline"
+                                  className="border-purple-200 text-purple-700 hover:bg-purple-50"
+                                  onClick={() => navigate('/create-project')}
+                                >
+                                  Start Your First Project
+                                </Button>
+                              </div>
+                            ) : (
+                              <p className="text-gray-600">Loading your projects...</p>
+                            )}
+                          </div>
+                        </div>
+                      </TabsContent>
+
+                      <TabsContent value="settings">
+                        <div className="space-y-4">
+                          <h3 className="text-lg font-semibold text-purple-800">Account Settings</h3>
+                          <div className="space-y-4">
+                            <Card className="border-purple-200">
+                              <CardHeader>
+                                <CardTitle className="text-base">Email Notifications</CardTitle>
+                              </CardHeader>
+                              <CardContent>
+                                <p className="text-gray-600">Notification preferences coming soon!</p>
+                              </CardContent>
+                            </Card>
+                            <Card className="border-purple-200">
+                              <CardHeader>
+                                <CardTitle className="text-base">Privacy Settings</CardTitle>
+                              </CardHeader>
+                              <CardContent>
+                                <p className="text-gray-600">Privacy controls coming soon!</p>
+                              </CardContent>
+                            </Card>
+                          </div>
+                        </div>
+                      </TabsContent>
+                    </Tabs>
+                  </CardContent>
+                </Card>
               </div>
             </div>
           </div>

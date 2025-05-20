@@ -10,7 +10,7 @@ export default function SSOCallback() {
     const handle = async () => {
       try {
         await handleRedirectCallback();
-        navigate("/home");
+        navigate("/onboarding");
       } catch (err) {
         console.error("Error handling SSO callback:", err);
         navigate("/sign-in");

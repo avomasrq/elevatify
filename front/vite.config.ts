@@ -9,11 +9,14 @@ export default defineConfig(() => ({
     port: 8080,
   },
   plugins: [
-    react(),
+    react({
+      tsDecorators: true,
+    }),
   ],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
+    extensions: ['.js', '.jsx', '.ts', '.tsx']
   },
 }));

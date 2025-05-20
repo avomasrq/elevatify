@@ -1,158 +1,110 @@
-import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useUser, useClerk } from "@clerk/clerk-react";
 import { Button } from "@/components/ui/button";
-import { useUser } from "@clerk/clerk-react";
-import { Menu, X, Home, Search, Bell, MessageSquare, User } from "lucide-react";
-import logo from "../assets/elevatify-logo.svg";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useState, useRef } from "react";
+import { Lock } from "lucide-react";
 
 export function Navbar() {
-  const { user, isSignedIn } = useUser();
+  const { user } = useUser();
+  const { signOut } = useClerk();
   const navigate = useNavigate();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const hoverTimeout = useRef<NodeJS.Timeout | null>(null);
+
+  const handleMouseEnter = () => {
+    if (hoverTimeout.current) clearTimeout(hoverTimeout.current);
+    setIsOpen(true);
+  };
+  const handleMouseLeave = () => {
+    hoverTimeout.current = setTimeout(() => setIsOpen(false), 120);
+  };
 
   return (
-    <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          {/* Logo */}
-          <div className="flex items-center">
-            <div className="flex-shrink-0 flex items-center">
-              <img
-                className="h-8 w-8"
-                src={logo}
-                alt="Elevatify Logo"
-              />
-            </div>
-            <Link to="/" className="flex items-center">
-              <span className="ml-2 text-xl font-bold text-elevatify-900">Elevatify</span>
-            </Link>
-          </div>
-
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex space-x-8">
-            <Link to="/about" className="text-gray-700 hover:text-elevatify-600 px-3 py-2 rounded-md text-sm font-medium">
-              About Us
-            </Link>
-            <Link to="/projects" className="text-gray-700 hover:text-elevatify-600 px-3 py-2 rounded-md text-sm font-medium">
-              Projects
-            </Link>
-            <Link to="/categories" className="text-gray-700 hover:text-elevatify-600 px-3 py-2 rounded-md text-sm font-medium">
-              Categories
-            </Link>
-          </nav>
-
-          {/* Right Actions */}
-          <div className="hidden md:flex items-center space-x-4">
-            {isSignedIn ? (
-              <>
-                <Button 
-                  onClick={() => navigate("/create-project")}
-                  className="bg-elevatify-600 hover:bg-elevatify-700"
-                >
-                  Create
-                </Button>
-                <Link to="/profile">
-                  <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
-                    {user?.imageUrl ? (
-                      <img src={user.imageUrl} alt="Profile" className="w-full h-full object-cover" />
-                    ) : (
-                      <User className="w-5 h-5 text-gray-500" />
-                    )}
-                  </div>
-                </Link>
-              </>
-            ) : (
-              <>
-                <Button variant="outline" onClick={() => navigate("/sign-in")}>
-                  Sign In
-                </Button>
-                <Button 
-                  onClick={() => navigate("/sign-up")}
-                  className="bg-elevatify-600 hover:bg-elevatify-700"
-                >
-                  Sign Up
-                </Button>
-              </>
-            )}
-          </div>
-
-          {/* Mobile Menu Button */}
-          <div className="flex md:hidden">
-            <button
-              type="button"
-              className="text-gray-500 hover:text-gray-700 focus:outline-none"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            >
-              {mobileMenuOpen ? (
-                <X className="w-6 h-6" />
-              ) : (
-                <Menu className="w-6 h-6" />
-              )}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Mobile Menu */}
-      {mobileMenuOpen && (
-        <div className="md:hidden">
-          <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-white shadow-lg">
-            <Link
-              to="/about"
-              className="text-gray-700 hover:bg-elevatify-100 block px-3 py-2 rounded-md text-base font-medium"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              About Us
-            </Link>
-            <Link
-              to="/projects"
-              className="text-gray-700 hover:bg-elevatify-100 block px-3 py-2 rounded-md text-base font-medium"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Projects
-            </Link>
-            <Link
-              to="/categories"
-              className="text-gray-700 hover:bg-elevatify-100 block px-3 py-2 rounded-md text-base font-medium"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Categories
-            </Link>
-            {isSignedIn ? (
-              <Button 
-                onClick={() => {
-                  navigate("/create-project");
-                  setMobileMenuOpen(false);
-                }}
-                className="w-full bg-elevatify-600 hover:bg-elevatify-700"
+    <nav className="bg-white border-b border-gray-200">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between h-16">
+          <div className="flex">
+            <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
+              <Link
+                to="/about"
+                className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-500 hover:text-gray-900"
               >
+                About Us
+              </Link>
+              {user ? (
+                <>
+                  <Link
+                    to="/projects"
+                    className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-500 hover:text-gray-900"
+                  >
+                    Projects
+                  </Link>
+                  <Link
+                    to="/categories"
+                    className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-500 hover:text-gray-900"
+                  >
+                    Categories
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <span className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-300 cursor-not-allowed">
+                    <Lock className="w-4 h-4 mr-1" /> Projects
+                  </span>
+                  <span className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-300 cursor-not-allowed">
+                    <Lock className="w-4 h-4 mr-1" /> Categories
+                  </span>
+                </>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center space-x-4">
+            <Link to="/create-project">
+              <Button variant="default" className="bg-[#7c3aed] hover:bg-[#6d28d9]">
                 Create
               </Button>
-            ) : (
-              <div className="flex flex-col space-y-2">
-                <Button 
-                  variant="outline" 
-                  onClick={() => {
-                    navigate("/sign-in");
-                    setMobileMenuOpen(false);
-                  }}
-                >
-                  Sign In
-                </Button>
-                <Button 
-                  onClick={() => {
-                    navigate("/sign-up");
-                    setMobileMenuOpen(false);
-                  }}
-                  className="bg-elevatify-600 hover:bg-elevatify-700"
-                >
-                  Sign Up
-                </Button>
+            </Link>
+            {user && (
+              <div
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
+                className="relative inline-block"
+              >
+                <button className="outline-none ml-2">
+                  <Avatar className="h-8 w-8 cursor-pointer">
+                    <AvatarImage src={user.imageUrl} alt={user.fullName || user.username || user.primaryEmailAddress?.emailAddress} />
+                    <AvatarFallback>{(user.fullName || user.username || user.primaryEmailAddress?.emailAddress || "U").slice(0, 2).toUpperCase()}</AvatarFallback>
+                  </Avatar>
+                </button>
+                {isOpen && (
+                  <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-md shadow-lg z-50">
+                    <div className="px-4 py-3 border-b">
+                      <div className="flex flex-col space-y-1">
+                        <p className="text-sm font-medium leading-none">{user.fullName || user.username || user.primaryEmailAddress?.emailAddress}</p>
+                        <p className="text-xs leading-none text-gray-500">{user.primaryEmailAddress?.emailAddress}</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => navigate("/settings")}
+                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                    >
+                      Manage account
+                    </button>
+                    <div className="border-t my-1" />
+                    <button
+                      onClick={() => signOut({ signOutAll: true })}
+                      className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-gray-100 cursor-pointer"
+                    >
+                      Sign out
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
         </div>
-      )}
-    </header>
+      </div>
+    </nav>
   );
 }

@@ -1,9 +1,9 @@
 [build]
 builder = "DOCKERFILE"
-dockerfilePath = "elevatify-backend/Dockerfile"
+dockerfilePath = "back/Dockerfile"
 
 [deploy]
-startCommand = "cd elevatify-backend && npx prisma migrate deploy && npm start"
+startCommand = "cd back && npx prisma migrate deploy && npm start"
 healthcheckPath = "/health"
 healthcheckTimeout = 100
 restartPolicyType = "on-failure"

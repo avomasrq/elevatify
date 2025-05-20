@@ -39,6 +39,8 @@ export default function CreateProject() {
       await createProject({
         ...formData,
         createdBy: user.id,
+        members: [user.id],
+        pendingRequests: [],
       });
       navigate("/projects");
     } catch (error) {
@@ -132,11 +134,15 @@ export default function CreateProject() {
                       <SelectValue placeholder="Select a category" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="web">Web Development</SelectItem>
-                      <SelectItem value="mobile">Mobile Development</SelectItem>
-                      <SelectItem value="design">Design</SelectItem>
-                      <SelectItem value="marketing">Marketing</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
+                      <SelectItem value="Web Development">Web Development</SelectItem>
+                      <SelectItem value="Mobile Development">Mobile Development</SelectItem>
+                      <SelectItem value="UI/UX Design">UI/UX Design</SelectItem>
+                      <SelectItem value="DevOps">DevOps</SelectItem>
+                      <SelectItem value="Data Science">Data Science</SelectItem>
+                      <SelectItem value="Cybersecurity">Cybersecurity</SelectItem>
+                      <SelectItem value="Game Development">Game Development</SelectItem>
+                      <SelectItem value="Blockchain">Blockchain</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

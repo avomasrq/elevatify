@@ -1,14 +1,18 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useSignUp, useClerk } from "@clerk/clerk-react";
-import { FcGoogle } from "react-icons/fc";
+import { useSignUp, useClerk, useUser } from "@clerk/clerk-react";
+import { toast } from "@/components/ui/use-toast";
+import { Loader2 } from "lucide-react";
+import { useLoading } from "../App";
+import { Logo } from "@/components/Logo";
 
 export default function SignUp() {
   const { isLoaded, signUp, setActive } = useSignUp();
   const { signOut } = useClerk();
+  const { isSignedIn } = useUser();
   const navigate = useNavigate();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -16,11 +20,17 @@ export default function SignUp() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | JSX.Element>("");
+  
+  const { setLoading: setGlobalLoading } = useLoading();
+  const firstNameInputRef = useRef(null);
+
+  useEffect(() => { if (firstNameInputRef.current) firstNameInputRef.current.focus(); }, []);
 
   const handleSignOut = async () => {
     try {
       await signOut();
       setError("");
+      navigate("/sign-in");
     } catch (err) {
       console.error("Error signing out:", err);
     }
@@ -29,31 +39,30 @@ export default function SignUp() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isLoaded) return;
-
-    setLoading(true);
+    if (!emailAddress.match(/^[^@\s]+@[^@\s]+\.[^@\s]+$/)) {
+      toast({ title: "Invalid Email", description: "Please enter a valid email address.", variant: "destructive" });
+      return;
+    }
+    if (password.length < 8) {
+      toast({ title: "Weak Password", description: "Password must be at least 8 characters.", variant: "destructive" });
+      return;
+    }
+    setGlobalLoading(true);
     setError("");
-
     try {
-      // Create username from email (before @ symbol)
       const username = emailAddress.split('@')[0];
-      
-      const result = await signUp.create({
-        emailAddress,
-        password,
-        username,
-      });
-
+      const result = await signUp.create({ emailAddress, password, username });
       if (result.status === "complete") {
         await setActive({ session: result.createdSessionId });
+        toast({ title: "Sign up successful!", description: "Welcome to Elevatify!", variant: "default" });
         navigate("/home");
+        return;
       } else {
-        await signUp.prepareEmailAddressVerification({
-          strategy: "email_code",
-        });
+        await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
         navigate("/verify");
       }
     } catch (err: any) {
-      console.error("Error signing up:", err);
+      toast({ title: "Sign up error", description: err.errors?.[0]?.message || "Error creating account", variant: "destructive" });
       if (err.message?.includes("single session mode")) {
         setError(
           <div>
@@ -71,55 +80,24 @@ export default function SignUp() {
         setError(err.errors?.[0]?.message || "Error creating account");
       }
     } finally {
-      setLoading(false);
+      setGlobalLoading(false);
     }
   };
 
-  const handleGoogleSignUp = async () => {
-    if (!isLoaded) return;
-
-    try {
-      await signUp.authenticateWithRedirect({
-        strategy: "oauth_google",
-        redirectUrl: window.location.origin + "/sso-callback",
-        redirectUrlComplete: "/home",
-      });
-    } catch (err: any) {
-      console.error("Error with Google sign up:", err);
-      if (err.message?.includes("single session mode")) {
-        setError(
-          <div>
-            You're currently signed in to another account.{" "}
-            <button
-              onClick={handleSignOut}
-              className="text-elevatify-600 hover:underline"
-            >
-              Sign out
-            </button>{" "}
-            first to continue.
-          </div>
-        );
-      } else {
-        setError("Could not connect to Google. Please try again.");
-      }
-    }
-  };
+  
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white to-elevatify-50 flex flex-col justify-center items-center px-4 py-12">
-      <Link to="/" className="mb-8 flex items-center">
-        <div className="w-10 h-10 rounded-full bg-elevatify-600 flex items-center justify-center">
-          <span className="text-white font-bold text-lg">E</span>
-        </div>
-        <span className="ml-2 text-2xl font-bold text-gray-900">Elevatify</span>
-      </Link>
-
-      <div className="w-full max-w-md bg-white p-8 rounded-xl shadow-lg">
-        <div className="text-center mb-6">
+      <div className="w-full max-w-md bg-white p-10 rounded-2xl shadow-xl border border-gray-100">
+        <div className="flex flex-col items-center mb-8">
+          <Link to="/" className="flex items-center mb-3">
+            <Logo className="w-12 h-12 mr-2" />
+            <span className="ml-2 text-3xl font-extrabold text-gray-900 tracking-tight">Elevatify</span>
+          </Link>
           <h1 className="text-2xl font-bold text-gray-900">Create your account</h1>
-          <p className="text-gray-600 mt-1">Join Elevatify to start collaborating</p>
+          <p className="text-gray-500 mt-1">Join Elevatify to start collaborating</p>
         </div>
-
+        <div className="border-t border-gray-100 mb-6"></div>
         {error && (
           <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-6 text-sm">
             {error}
@@ -137,8 +115,10 @@ export default function SignUp() {
                 placeholder="John"
                 required
                 className="w-full"
+                ref={firstNameInputRef}
               />
             </div>
+
             <div className="space-y-2">
               <Label htmlFor="lastName">Last Name</Label>
               <Input
@@ -180,34 +160,19 @@ export default function SignUp() {
             <p className="text-xs text-gray-500">Must be at least 8 characters</p>
           </div>
 
-          <Button
-            type="submit"
-            className="w-full bg-elevatify-600 hover:bg-elevatify-700"
-            disabled={loading}
-          >
-            {loading ? "Creating account..." : "Create account"}
-          </Button>
+          {/* Clerk Captcha rendered here */}
+          <div id="clerk-captcha" className="flex justify-center mb-2" />
+
+          <div className="flex flex-col gap-2 md:flex-row md:gap-4 mb-2 justify-center items-center">
+            <Button
+              type="submit"
+              className="w-full md:w-1/2 bg-elevatify-600 hover:bg-elevatify-700"
+              disabled={loading}
+            >
+              {loading ? "Creating account..." : "Create account"}
+            </Button>
+          </div>
         </form>
-
-        <div className="relative my-6">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-200"></div>
-          </div>
-          <div className="relative flex justify-center text-sm">
-            <span className="px-2 bg-white text-gray-500">Or continue with</span>
-          </div>
-        </div>
-
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full flex items-center justify-center gap-2"
-          onClick={handleGoogleSignUp}
-          disabled={loading}
-        >
-          <FcGoogle className="w-5 h-5" />
-          Google
-        </Button>
 
         <p className="mt-6 text-center text-sm text-gray-600">
           Already have an account?{" "}

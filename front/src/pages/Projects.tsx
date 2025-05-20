@@ -18,6 +18,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Card } from "@/components/ui/card";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export default function Projects() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -26,6 +28,8 @@ export default function Projects() {
   const navigate = useNavigate();
   const { user } = useUser();
   const { toast } = useToast();
+  const [isRequesting, setIsRequesting] = useState<Record<string, boolean>>({});
+  const [isUserRequesting, setIsUserRequesting] = useState<Record<string, boolean>>({});
 
   const fetchProjects = async () => {
     try {
@@ -81,6 +85,91 @@ export default function Projects() {
     }
   };
 
+  // Helper to fetch user profile from localStorage
+  const getUserProfile = (userId: string) => {
+    const data = localStorage.getItem(`userSettings_${userId}`);
+    return data ? JSON.parse(data) : null;
+  };
+
+  // Add request to join logic (copied from Categories)
+  const handleRequestToJoin = async (projectId: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "You must be signed in to request to join a project",
+        variant: "destructive",
+      });
+      return;
+    }
+    try {
+      setIsRequesting(prev => ({ ...prev, [projectId]: true }));
+      // Update localStorage
+      const projects = JSON.parse(localStorage.getItem("elevatify_global_projects") || "[]");
+      const updatedProjects = projects.map((p: any) =>
+        p.id === projectId && !p.pendingRequests.includes(user.id) && !p.members.includes(user.id)
+          ? { ...p, pendingRequests: [...p.pendingRequests, user.id] }
+          : p
+      );
+      localStorage.setItem("elevatify_global_projects", JSON.stringify(updatedProjects));
+      // Trigger a custom event to notify Requests page in the same tab
+      window.dispatchEvent(new Event("elevatify_requests_updated"));
+      // Refresh project list from storage
+      setProjects(updatedProjects);
+      toast({
+        title: "Request Sent",
+        description: "Your request to join the project has been sent to the owner",
+      });
+    } catch (error) {
+      console.error('Error requesting to join:', error);
+      toast({
+        title: "Error",
+        description: "Failed to send request. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRequesting(prev => ({ ...prev, [projectId]: false }));
+    }
+  };
+
+  // General request to join handler for a user (CV owner)
+  const handleRequestToUser = async (userId: string) => {
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "You must be signed in to request to join a project",
+        variant: "destructive",
+      });
+      return;
+    }
+    try {
+      setIsUserRequesting(prev => ({ ...prev, [userId]: true }));
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      toast({
+        title: "Request Sent",
+        description: `Your request to join has been sent to the owner of this CV.`,
+      });
+      // Here you could add logic to actually notify the user (e.g., update a requests array, call an API, etc.)
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to send request. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUserRequesting(prev => ({ ...prev, [userId]: false }));
+    }
+  };
+
+  // Get unique categories from projects, filter out empty/undefined/whitespace
+  const categories = Array.from(
+    new Set(
+      projects
+        .map(p => p.category)
+        .filter(cat => typeof cat === 'string' && cat.trim() !== "")
+    )
+  );
+
   return (
     <div className="flex h-screen bg-gray-100">
       <Sidebar />
@@ -89,7 +178,7 @@ export default function Projects() {
         <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
           <div className="container mx-auto">
             <div className="flex justify-between items-center mb-6">
-              <h1 className="text-3xl font-semibold text-gray-800">Projects</h1>
+              <h1 className="text-3xl font-semibold text-gray-800">All Projects</h1>
             </div>
 
             {loading ? (
@@ -121,15 +210,96 @@ export default function Projects() {
                       </span>
                     </div>
                     <p className="text-gray-600 mb-4">{project.description}</p>
+                    {/* CV Preview Section */}
+                    <div className="mb-4">
+                      <h4 className="font-semibold text-gray-800 text-sm mb-1">Team Members' CVs</h4>
+                      <TooltipProvider>
+                        <div className="flex flex-wrap gap-2">
+                          {project.members && project.members.length > 0 ? (
+                            project.members.slice(0, 2).map((memberId) => {
+                              const profile = getUserProfile(memberId);
+                              return (
+                                <Tooltip key={memberId}>
+                                  <TooltipTrigger asChild>
+                                    <div
+                                      className="w-44"
+                                      onClick={() => navigate(`/profile/${memberId}`)}
+                                      style={{ cursor: 'pointer' }}
+                                    >
+                                      <Card className="p-2 hover:shadow-lg transition-shadow">
+                                        <div className="font-bold text-xs mb-1">{profile?.displayName || `User ${memberId}`}</div>
+                                        <div className="text-xs text-gray-600 mb-1">{profile?.specialization || 'N/A'}</div>
+                                        <div className="text-xs text-gray-600 mb-1">{profile?.region || 'N/A'}</div>
+                                        <div className="text-xs text-gray-600 mb-1 line-clamp-2">{profile?.bio || 'No bio.'}</div>
+                                        {profile?.githubUsername && (
+                                          <a href={`https://github.com/${profile.githubUsername}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline text-xs mr-1" onClick={e => e.stopPropagation()}>GitHub</a>
+                                        )}
+                                        {profile?.linkedinUrl && (
+                                          <a href={profile.linkedinUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline text-xs" onClick={e => e.stopPropagation()}>LinkedIn</a>
+                                        )}
+                                      </Card>
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" className="max-w-xs">
+                                    <div className="text-xs">
+                                      <div className="font-bold mb-1">{profile?.displayName || `User ${memberId}`}</div>
+                                      <div>Specialization: {profile?.specialization || 'N/A'}</div>
+                                      <div>Region: {profile?.region || 'N/A'}</div>
+                                      <div>Bio: {profile?.bio || 'No bio.'}</div>
+                                      {profile?.githubUsername && (
+                                        <div><a href={`https://github.com/${profile.githubUsername}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">GitHub</a></div>
+                                      )}
+                                      {profile?.linkedinUrl && (
+                                        <div><a href={profile.linkedinUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">LinkedIn</a></div>
+                                      )}
+                                    </div>
+                                  </TooltipContent>
+                                </Tooltip>
+                              );
+                            })
+                          ) : (
+                            <span className="text-xs text-gray-500">No members yet</span>
+                          )}
+                          {project.members && project.members.length > 2 && (
+                            <span className="text-xs text-gray-500">+{project.members.length - 2} more</span>
+                          )}
+                        </div>
+                      </TooltipProvider>
+                    </div>
+                    {/* General Request to Join button for the project owner */}
+                    {user && user.id !== project.ownerId && (
+                      <Button
+                        className="mb-4"
+                        size="sm"
+                        variant="outline"
+                        onClick={e => {
+                          e.preventDefault();
+                          handleRequestToJoin(project.id, e);
+                        }}
+                        disabled={isRequesting[project.id] || 
+                                (project.pendingRequests && project.pendingRequests.includes(user.id)) ||
+                                (project.members && project.members.includes(user.id))}
+                      >
+                        {isRequesting[project.id] ? 'Requesting...' : 
+                         (project.pendingRequests && project.pendingRequests.includes(user.id)) ? 'Request Pending' :
+                         (project.members && project.members.includes(user.id)) ? 'Already a Member' : 
+                         'Request to Join'}
+                      </Button>
+                    )}
                     <div className="flex justify-between text-sm text-gray-500">
                       <span>Team: {project.teamSize} members</span>
                       <span>{project.timeframe}</span>
                     </div>
                     <div className="mt-4 pt-4 border-t flex justify-between items-center">
-                      <span className="text-sm text-gray-500">
-                        Category: {project.category}
-                      </span>
-                      {project.createdBy === user?.id && (
+                      <div className="flex flex-col gap-1">
+                        <span className="text-sm text-gray-500">
+                          Category: {project.category}
+                        </span>
+                        <span className="text-sm text-gray-500">
+                          Role: {project.ownerId === user?.id ? 'Owner' : 'Member'}
+                        </span>
+                      </div>
+                      {project.ownerId === user?.id && (
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button

@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useSignUp } from "@clerk/clerk-react";
 import { toast } from "@/components/ui/use-toast";
+import { Logo } from "@/components/Logo";
 
 export default function Verify() {
   const { isLoaded, signUp, setActive } = useSignUp();
@@ -83,24 +84,19 @@ export default function Verify() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white to-elevatify-50 flex flex-col justify-center items-center px-4 py-12">
-      <div className="w-10 h-10 rounded-full bg-elevatify-600 flex items-center justify-center mb-8">
-        <span className="text-white font-bold text-lg">E</span>
-      </div>
-
-      <div className="w-full max-w-md bg-white p-8 rounded-xl shadow-lg">
-        <div className="text-center mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Verify your email</h1>
-          <p className="text-gray-600 mt-1">
-            We've sent a verification code to your email
-          </p>
+      <div className="w-full max-w-md bg-white p-10 rounded-2xl shadow-xl border border-gray-100">
+        <div className="flex flex-col items-center mb-8">
+          <Logo className="w-12 h-12 mr-2" />
+          <span className="ml-2 text-3xl font-extrabold text-gray-900 tracking-tight">Elevatify</span>
+          <h1 className="text-2xl font-bold text-gray-900 mt-4">Verify your email</h1>
+          <p className="text-gray-500 mt-1">We've sent a verification code to your email</p>
         </div>
-
+        <div className="border-t border-gray-100 mb-6"></div>
         {error && (
           <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-6 text-sm">
             {error}
           </div>
         )}
-
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="code">Verification Code</Label>
@@ -112,7 +108,6 @@ export default function Verify() {
               required
             />
           </div>
-
           <Button
             type="submit"
             className="w-full bg-elevatify-600 hover:bg-elevatify-700"
@@ -121,7 +116,6 @@ export default function Verify() {
             {loading ? "Verifying..." : "Verify Email"}
           </Button>
         </form>
-
         <div className="mt-4 text-center">
           <button
             type="button"
@@ -134,4 +128,4 @@ export default function Verify() {
       </div>
     </div>
   );
-} 
+}

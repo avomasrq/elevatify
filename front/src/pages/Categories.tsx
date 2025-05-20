@@ -5,8 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Plus, Loader2 } from "lucide-react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useUser } from "@clerk/clerk-react";
+import { useUser, useSignIn } from "@clerk/clerk-react";
 import { toast } from "@/components/ui/use-toast";
+import { Card } from "@/components/ui/card";
+import { storeProjects, getProjects } from '../services/projectService';
 
 interface Category {
   name: string;
@@ -51,10 +53,17 @@ const calculateCategoryAnalytics = (projects: Project[]) => {
   };
 };
 
+// Helper to fetch user profile from localStorage
+const getUserProfile = (userId: string) => {
+  const data = localStorage.getItem(`userSettings_${userId}`);
+  return data ? JSON.parse(data) : null;
+};
+
 export default function Categories() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useUser();
+  const { signIn, isLoaded } = useSignIn();
   const [categories, setCategories] = useState<Category[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -80,23 +89,9 @@ export default function Categories() {
   useEffect(() => {
     const fetchProjects = async () => {
       try {
-        // Simulate API call to fetch projects
-        const mockProjects: Project[] = [
-          { id: "1", title: "E-commerce Website", category: "Web Development", description: "Full-stack e-commerce platform", ownerId: "user1", members: ["user2", "user3"], pendingRequests: ["user4"] },
-          { id: "2", title: "Mobile Banking App", category: "Mobile Development", description: "iOS and Android banking application", ownerId: "user2", members: ["user1"], pendingRequests: ["user3"] },
-          { id: "3", title: "Portfolio Redesign", category: "UI/UX Design", description: "Modern portfolio website redesign", ownerId: "user3", members: [], pendingRequests: ["user1"] },
-          { id: "4", title: "Data Analysis Dashboard", category: "Data Science", description: "Interactive data visualization dashboard", ownerId: "user4", members: ["user2"], pendingRequests: [] },
-          { id: "5", title: "Game Engine", category: "Game Development", description: "Custom game engine development", ownerId: "user5", members: ["user1", "user3"], pendingRequests: ["user2"] },
-          { id: "6", title: "Smart Contract", category: "Blockchain", description: "Ethereum smart contract development", ownerId: "user6", members: [], pendingRequests: ["user1"] },
-          { id: "7", title: "Security Audit", category: "Cybersecurity", description: "Web application security audit", ownerId: "user7", members: ["user2"], pendingRequests: [] },
-          { id: "8", title: "CI/CD Pipeline", category: "DevOps", description: "Automated deployment pipeline", ownerId: "user8", members: ["user1", "user3"], pendingRequests: ["user2"] },
-          { id: "9", title: "Web App", category: "Web Development", description: "React-based web application", ownerId: "user9", members: ["user2"], pendingRequests: ["user1"] },
-          { id: "10", title: "Mobile Game", category: "Game Development", description: "Cross-platform mobile game", ownerId: "user10", members: [], pendingRequests: ["user1", "user2"] },
-        ];
-
-        // Simulate network delay
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        setProjects(mockProjects);
+        // Fetch all projects from storage, not mock data
+        const allProjects = await getProjects();
+        setProjects(allProjects);
         setIsLoading(false);
       } catch (error) {
         console.error('Error fetching projects:', error);
@@ -166,8 +161,8 @@ export default function Categories() {
 
     try {
       setIsRequesting(prev => ({ ...prev, [projectId]: true }));
-      // Simulate API call to request to join
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Remove simulated API call delay
+      // await new Promise(resolve => setTimeout(resolve, 1000));
 
       toast({
         title: "Request Sent",
@@ -263,9 +258,8 @@ export default function Categories() {
                   <h2 className="text-xl font-semibold text-gray-900 mb-4">Projects in {selectedCategory}</h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {filteredProjects.map((project) => (
-                      <Link
+                      <div
                         key={project.id}
-                        to={`/project/${project.id}`}
                         className="block group p-4 border border-gray-100 rounded-lg hover:border-elevatify-200 hover:shadow-md transition-all focus:outline-none focus:ring-2 focus:ring-elevatify-500 focus:ring-offset-2"
                       >
                         <div className="flex flex-col h-full">
@@ -276,6 +270,32 @@ export default function Categories() {
                             <p className="text-sm text-gray-600 mt-1">
                               {project.description}
                             </p>
+                          </div>
+                          {/* CV Preview Section */}
+                          <div className="mt-2">
+                            <h4 className="font-semibold text-gray-800 text-sm mb-1">Team Members' CVs</h4>
+                            <div className="flex flex-wrap gap-2">
+                              {project.members.slice(0, 2).map((memberId) => {
+                                const profile = getUserProfile(memberId);
+                                return (
+                                  <Card key={memberId} className="p-2 w-44">
+                                    <div className="font-bold text-xs mb-1">{profile?.displayName || `User ${memberId}`}</div>
+                                    <div className="text-xs text-gray-600 mb-1">{profile?.specialization || 'N/A'}</div>
+                                    <div className="text-xs text-gray-600 mb-1">{profile?.region || 'N/A'}</div>
+                                    <div className="text-xs text-gray-600 mb-1 line-clamp-2">{profile?.bio || 'No bio.'}</div>
+                                    {profile?.githubUsername && (
+                                      <a href={`https://github.com/${profile.githubUsername}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline text-xs mr-1">GitHub</a>
+                                    )}
+                                    {profile?.linkedinUrl && (
+                                      <a href={profile.linkedinUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline text-xs">LinkedIn</a>
+                                    )}
+                                  </Card>
+                                );
+                              })}
+                              {project.members.length > 2 && (
+                                <span className="text-xs text-gray-500">+{project.members.length - 2} more</span>
+                              )}
+                            </div>
                           </div>
                           <div className="mt-4 flex items-center justify-between">
                             <div className="text-sm text-gray-500">
@@ -306,7 +326,7 @@ export default function Categories() {
                             )}
                           </div>
                         </div>
-                      </Link>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -317,4 +337,4 @@ export default function Categories() {
       </div>
     </div>
   );
-} 
+}

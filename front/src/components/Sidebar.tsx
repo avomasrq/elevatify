@@ -1,136 +1,86 @@
-
-import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { 
-  Home, 
-  MessageSquare, 
-  Settings, 
-  Search, 
-  UserPlus, 
-  Mail, 
-  Tag, 
-  ChevronRight, 
-  ChevronLeft 
-} from "lucide-react";
-
-interface SidebarItemProps {
-  icon: React.ReactNode;
-  name: string;
-  to: string;
-  isActive: boolean;
-  isCollapsed: boolean;
-  onClick?: () => void;
-}
-
-const SidebarItem = ({ icon, name, to, isActive, isCollapsed, onClick }: SidebarItemProps) => {
-  return (
-    <Link
-      to={to}
-      onClick={onClick}
-      className={cn(
-        "flex items-center py-2.5 px-4 rounded-lg transition-all duration-300",
-        isActive 
-          ? "bg-elevatify-100 text-elevatify-700 font-medium" 
-          : "text-gray-600 hover:bg-elevatify-50 hover:text-elevatify-600"
-      )}
-    >
-      <div className="flex items-center">
-        <span className="mr-3 text-xl">{icon}</span>
-        {!isCollapsed && <span>{name}</span>}
-      </div>
-    </Link>
-  );
-};
+import { Home, FolderKanban, UserPlus, MessageSquare, Lock } from "lucide-react";
+import { Logo } from "./Logo";
+import { useUser } from "@clerk/clerk-react";
+import { useEffect, useState } from "react";
 
 export function Sidebar() {
   const location = useLocation();
-  const [collapsed, setCollapsed] = useState(false);
+  const { user } = useUser();
+  const [isReady, setIsReady] = useState(false);
+  useEffect(() => {
+    // Wait for Clerk to finish loading user state
+    setIsReady(true);
+  }, [user]);
+  const isActive = (path: string) => location.pathname === path;
 
-  const sidebarItems = [
-    {
-      name: "Home",
-      icon: <Home size={20} />,
-      to: "/home",
-    },
-    {
-      name: "Requests",
-      icon: <UserPlus size={20} />,
-      to: "/requests",
-    },
-    {
-      name: "Invitations",
-      icon: <Mail size={20} />,
-      to: "/invitations",
-    },
-    {
-      name: "Categories",
-      icon: <Tag size={20} />,
-      to: "/categories",
-    },
-    {
-      name: "Messages",
-      icon: <MessageSquare size={20} />,
-      to: "/messages",
-    },
-    {
-      name: "Settings",
-      icon: <Settings size={20} />,
-      to: "/settings",
-    },
-  ];
+  if (!isReady) return null;
 
   return (
-    <div 
-      className={cn(
-        "h-screen bg-white border-r border-gray-100 transition-all duration-300 sticky top-0 left-0 z-20",
-        collapsed ? "w-16" : "w-64"
-      )}
-    >
-      <div className="h-16 flex items-center justify-center">
-        {/* Empty space with the same height as Navbar */}
+    <div className="w-64 min-h-screen bg-white border-r border-gray-200">
+      <div className="p-4">
+        <Link to="/" className="flex items-center space-x-2">
+          <Logo />
+          <span className="text-xl font-semibold text-gray-900">Elevatify</span>
+        </Link>
       </div>
-
-      {/* Toggle collapse button */}
-      <div className="absolute right-[-12px] top-20 flex items-center justify-center">
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="bg-white rounded-full p-1 shadow-md text-gray-500 hover:text-elevatify-600 transition-colors"
-        >
-          {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
-        </button>
-      </div>
-
-      {/* Search */}
-      <div className="px-4 py-2">
-        {!collapsed ? (
-          <div className="flex items-center bg-gray-100 rounded-lg px-3 py-2">
-            <Search size={18} className="text-gray-500" />
-            <input
-              type="text"
-              placeholder="Search..."
-              className="bg-transparent border-none focus:outline-none text-sm ml-2 w-full"
-            />
-          </div>
+      <nav className="mt-6 px-3">
+        <Link to="/home" className={cn(
+          "flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-colors",
+          isActive("/home") ? "bg-purple-50 text-purple-700" : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+        )}>
+          <Home className="h-5 w-5 mr-3" />
+          Home
+        </Link>
+        {user ? (
+          <>
+            <Link to="/my-projects" className={cn(
+              "flex items-center px-4 py-2.5 text-sm font-medium rounded-lg mt-1 transition-colors",
+              isActive("/my-projects") ? "bg-purple-50 text-purple-700" : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+            )}>
+              <FolderKanban className="h-5 w-5 mr-3" />
+              My Projects
+            </Link>
+            <Link to="/projects" className={cn(
+              "flex items-center px-4 py-2.5 text-sm font-medium rounded-lg mt-1 transition-colors",
+              isActive("/projects") ? "bg-purple-50 text-purple-700" : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+            )}>
+              <FolderKanban className="h-5 w-5 mr-3" />
+              All Projects
+            </Link>
+            <Link to="/requests" className={cn(
+              "flex items-center px-4 py-2.5 text-sm font-medium rounded-lg mt-1 transition-colors",
+              isActive("/requests") ? "bg-purple-50 text-purple-700" : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+            )}>
+              <UserPlus className="h-5 w-5 mr-3" />
+              Requests
+            </Link>
+            <Link to="/messages" className={cn(
+              "flex items-center px-4 py-2.5 text-sm font-medium rounded-lg mt-1 transition-colors",
+              isActive("/messages") ? "bg-purple-50 text-purple-700" : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+            )}>
+              <MessageSquare className="h-5 w-5 mr-3" />
+              Messages
+            </Link>
+          </>
         ) : (
-          <div className="flex justify-center py-1">
-            <Search size={20} className="text-gray-500" />
-          </div>
+          <>
+            <span className="flex items-center px-4 py-2.5 text-sm font-medium rounded-lg mt-1 text-gray-300 cursor-not-allowed">
+              <Lock className="h-5 w-5 mr-3" /> My Projects
+            </span>
+            <span className="flex items-center px-4 py-2.5 text-sm font-medium rounded-lg mt-1 text-gray-300 cursor-not-allowed">
+              <Lock className="h-5 w-5 mr-3" /> All Projects
+            </span>
+            <span className="flex items-center px-4 py-2.5 text-sm font-medium rounded-lg mt-1 text-gray-300 cursor-not-allowed">
+              <Lock className="h-5 w-5 mr-3" /> Requests
+            </span>
+            <span className="flex items-center px-4 py-2.5 text-sm font-medium rounded-lg mt-1 text-gray-300 cursor-not-allowed">
+              <Lock className="h-5 w-5 mr-3" /> Messages
+            </span>
+          </>
         )}
-      </div>
-
-      <div className="mt-6 space-y-1 px-2">
-        {sidebarItems.map((item) => (
-          <SidebarItem
-            key={item.name}
-            icon={item.icon}
-            name={item.name}
-            to={item.to}
-            isActive={location.pathname === item.to}
-            isCollapsed={collapsed}
-          />
-        ))}
-      </div>
+      </nav>
     </div>
   );
 }

@@ -1,183 +1,106 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { useNavigate, Link } from "react-router-dom";
 import { useSignIn, useUser } from "@clerk/clerk-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/use-toast";
-import { FcGoogle } from "react-icons/fc";
+import { Logo } from "@/components/Logo";
+
+import { useLoading } from "../App";
+import { Loader2 } from "lucide-react";
 
 export default function SignIn() {
   const navigate = useNavigate();
-  const { signIn, isLoaded: signInLoaded } = useSignIn();
-  const { user, isLoaded: userLoaded, isSignedIn } = useUser();
+  const { isLoaded, signIn } = useSignIn();
+  const { isSignedIn } = useUser();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const { setLoading } = useLoading();
+  const emailInputRef = useRef(null);
 
-  // Redirect if already signed in
-  if (userLoaded && isSignedIn) {
-    navigate("/home");
-    return null;
-  }
+  useEffect(() => { if (emailInputRef.current) emailInputRef.current.focus(); }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!signInLoaded) return;
-
+    setLoading(true);
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-      const result = await signIn.create({
-        identifier: email,
-        password,
-      });
-
+      if (!isLoaded || !signIn) throw new Error("Clerk not loaded");
+      const result = await signIn.create({ identifier: email, password });
       if (result.status === "complete") {
+        toast({ title: "Redirecting...", description: "Sign in successful!", variant: "default" });
         navigate("/home");
-      } else {
-        console.error("Sign in failed:", result);
-        toast({
-          title: "Error",
-          description: "Failed to sign in. Please check your credentials.",
-          variant: "destructive",
-        });
+      } else if (result.status === "needs_first_factor" || result.status === "needs_second_factor") {
+        // Handle multi-factor if needed
       }
     } catch (error: any) {
-      console.error("Error signing in:", error);
-      toast({
-        title: "Error",
-        description: error.message || "An error occurred during sign in.",
-        variant: "destructive",
-      });
+      toast({ title: "Sign in error", description: error.errors?.[0]?.message || "Invalid email or password.", variant: "destructive" });
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleGoogleSignIn = async () => {
-    if (!signInLoaded) return;
-
-    try {
-      setIsLoading(true);
-      await signIn.authenticateWithRedirect({
-        strategy: "oauth_google",
-        redirectUrl: "/sso-callback",
-        redirectUrlComplete: "/home",
-      });
-    } catch (error: any) {
-      console.error("Error with Google sign in:", error);
-      // Check if the error is related to single session
-      if (error.message?.includes("single session mode")) {
-        toast({
-          title: "Session Error",
-          description: "Please clear your browser cookies and try again.",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to sign in with Google. Please try again.",
-          variant: "destructive",
-        });
-      }
-    } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 p-4">
-      <div className="w-full max-w-md space-y-8">
-        <div className="flex flex-col items-center justify-center text-center">
-          <div className="flex items-center space-x-2">
-            <div className="h-12 w-12 rounded-full bg-elevatify-600 text-white flex items-center justify-center text-2xl font-bold">
-              E
-            </div>
-            <h1 className="text-3xl font-bold">Elevatify</h1>
-          </div>
-          <h2 className="mt-6 text-2xl font-bold">Welcome back</h2>
-          <p className="mt-2 text-gray-600">Sign in to your account</p>
+    <div className="min-h-screen bg-gradient-to-br from-white to-purple-50 flex flex-col items-center justify-center p-4">
+      <div className="w-full max-w-md bg-white p-10 rounded-2xl shadow-xl">
+        <div className="flex flex-col items-center mb-8">
+          <Link to="/" className="flex items-center mb-3">
+            <Logo className="w-12 h-12 mr-2" />
+            <span className="ml-2 text-3xl font-extrabold text-gray-900 tracking-tight">Elevatify</span>
+          </Link>
+          <h2 className="text-2xl font-bold text-gray-900">Welcome back</h2>
+          <p className="mt-2 text-sm text-gray-500">
+            Don't have an account?{" "}
+            <Link to="/sign-up" className="text-purple-600 hover:text-purple-500">
+              Sign up
+            </Link>
+          </p>
         </div>
+        <div className="border-t border-gray-100 mb-6"></div>
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-6">
           <div className="space-y-4">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                Email
-              </label>
+              <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                placeholder="Enter your email"
                 required
                 className="mt-1"
-                placeholder="Enter your email"
+                ref={emailInputRef}
               />
             </div>
-
             <div>
-              <div className="flex items-center justify-between">
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                  Password
-                </label>
-                <button
-                  type="button"
-                  onClick={() => navigate("/forgot-password")}
-                  className="text-sm text-elevatify-600 hover:text-elevatify-500"
-                >
-                  Forgot password?
-                </button>
-              </div>
+              <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your password"
                 required
                 className="mt-1"
-                placeholder="Enter your password"
               />
             </div>
           </div>
 
-          <Button
-            type="submit"
-            className="w-full bg-elevatify-600 hover:bg-elevatify-700"
-            disabled={isLoading}
-          >
-            {isLoading ? "Signing in..." : "Sign in"}
-          </Button>
-
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300" />
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="bg-gray-50 px-2 text-gray-500">Or continue with</span>
-            </div>
-          </div>
-
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full"
-            onClick={handleGoogleSignIn}
-            disabled={isLoading}
-          >
-            <FcGoogle className="mr-2 h-5 w-5" />
-            Google
-          </Button>
-
-          <p className="text-center text-sm text-gray-600">
-            Don't have an account?{" "}
-            <button
-              type="button"
-              onClick={() => navigate("/sign-up")}
-              className="text-elevatify-600 hover:text-elevatify-500"
+          {/* GitHub and Sign In Buttons beneath password */}
+          <div className="flex flex-col gap-2 md:flex-row md:gap-4 mb-2 justify-center items-center">
+            <Button
+              type="submit"
+              className="w-full md:w-1/2 bg-elevatify-600 hover:bg-elevatify-700"
+              disabled={isLoading}
             >
-              Sign up
-            </button>
-          </p>
+              {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {isLoading ? "Signing in..." : "Sign in"}
+            </Button>
+          </div>
         </form>
       </div>
     </div>
