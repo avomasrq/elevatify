@@ -4,16 +4,15 @@ WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
-COPY prisma ./prisma/
 
 # Install dependencies
 RUN npm install
 
+# Copy source code and prisma directory
+COPY . .
+
 # Generate Prisma client
 RUN npx prisma generate
-
-# Copy source code
-COPY . .
 
 # Build TypeScript
 RUN npm run build
